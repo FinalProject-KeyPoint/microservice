@@ -1,8 +1,10 @@
+#!~/microservice/venv/bin/python
 import json
-import bs4
+from bs4 import BeautifulSoup
 import urllib.request
 import nltk
 import numpy as np
+from flask_cors import CORS
 from flask import jsonify, request, Flask
 from nltk.tokenize import sent_tokenize
 from nltk.tokenize import word_tokenize
@@ -10,11 +12,17 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from sklearn.feature_extraction.text import CountVectorizer
 
+# only when needed
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
 # setup web server
 app = Flask(__name__)
+CORS(app)
 
 
-@app.route('/', methods=['POST'])
+@app.route('/', methods=['POST', 'GET'])
 def text_summarizer():
     '''
     fungsi ini menerima request body
@@ -22,24 +30,29 @@ def text_summarizer():
     hasil ekstrasi artikel dari client
     '''
 
+    if request.method == 'GET':
+        return 'hello'
+
     # ambil body dari request
     body = request.get_data()
+    # print(body)
 
     # ubah string menjadi dict python
     data = json.loads(body)
-
-    article_content = data['isi_artikel']
-
+    # print(data)
+    article_content = sent_tokenize(data['isi_artikel'])
+    # print(sent_tokenize(article_content))
     clean_data = []
 
+    stemmer = StemmerFactory().create_stemmer()
+    stopwords = StopWordRemoverFactory().get_stop_words()
+    
     def preprocessing(text):
-        stemmer = StemmerFactory().create_stemmer()
-        stopwords = StopWordRemoverFactory().get_stop_words()
         text = text.lower()
         text = stemmer.stem(text)
 
         result = []
-        for word in text.split(' '):
+        for word in word_tokenize(text):
             if (word not in stopwords):
                 result.append(word)
 
@@ -47,6 +60,8 @@ def text_summarizer():
 
     for sent in article_content:
         clean_data.append(preprocessing(sent))
+
+    # print(clean_data)
 
     vectorizer = CountVectorizer()
     vectors = vectorizer.fit_transform(clean_data)
@@ -84,6 +99,7 @@ def text_summarizer():
     # buat proteksi, in case client requestnya
     # di luar POST
     if request.method == 'POST':
+        print(result)
         return jsonify(result)
 
 
@@ -102,7 +118,7 @@ def text_summarizer_demo():
     article_read = fetched_data.read()
 
     # Parsing the URL content and storing in a variable
-    soup = bs4.BeautifulSoup(article_read, 'html.parser')
+    soup = BeautifulSoup(article_read, 'html.parser')
 
     article_content = []
 
@@ -168,3 +184,6 @@ def text_summarizer_demo():
         "url": url,
         "result": result
     })
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=3000, debug=True, threaded=True)
