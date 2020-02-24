@@ -1,9 +1,10 @@
 #!~/microservice/venv/bin/python
 import json
-from bs4 import BeautifulSoup
+import math
 import urllib.request
 import nltk
 import numpy as np
+from bs4 import BeautifulSoup
 from flask_cors import CORS
 from flask import jsonify, request, Flask
 from nltk.tokenize import sent_tokenize
@@ -35,13 +36,11 @@ def text_summarizer():
 
     # ambil body dari request
     body = request.get_data()
-    # print(body)
 
     # ubah string menjadi dict python
     data = json.loads(body)
-    # print(data)
+
     article_content = sent_tokenize(data['isi_artikel'])
-    # print(sent_tokenize(article_content))
     clean_data = []
 
     stemmer = StemmerFactory().create_stemmer()
@@ -60,8 +59,6 @@ def text_summarizer():
 
     for sent in article_content:
         clean_data.append(preprocessing(sent))
-
-    # print(clean_data)
 
     vectorizer = CountVectorizer()
     vectors = vectorizer.fit_transform(clean_data)
@@ -90,11 +87,16 @@ def text_summarizer():
 
         sent_weight[ix] = g_sent / len(list_word)
 
-    top5 = sorted(sent_weight.items(), key=lambda x: x[1], reverse=True)[:5]
+    n_sent = math.floor(len(article_content) * 0.6)
+    keypoints = sorted(sent_weight.items(), key=lambda x: x[1], reverse=True)[:n_sent]
 
     result = []
-    for ix, _ in top5:
-        result.append(article_content[ix])
+    # print(keypoints)
+    for index, sent in enumerate(article_content):
+        for ix, _ in keypoints:
+            if index == ix:
+                result.append(sent)
+                break
 
     # buat proteksi, in case client requestnya
     # di luar POST
