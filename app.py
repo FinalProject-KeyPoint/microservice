@@ -40,7 +40,25 @@ def text_summarizer():
     # ubah string menjadi dict python
     data = json.loads(body)
 
-    article_content = sent_tokenize(data['isi_artikel'])
+    # sentence tokenize from nltk (does not consider quotes)
+    original_tokenize = sent_tokenize(data['isi_artikel'])
+
+    # combine sentences inside quotes
+    isInsideQuote = False
+    fullsent = ''
+    article_content = []
+    for sent in original_tokenize:
+        fullsent += ' ' + sent
+        hasUnpairedQuot = False
+        for c in sent:
+            if c == '\"' or c == '“' or c == '”': # 3 possible double-quotes seen in news sites
+                hasUnpairedQuot = not hasUnpairedQuot
+        if hasUnpairedQuot:
+            isInsideQuote = not isInsideQuote
+        if not isInsideQuote:
+            article_content.append(fullsent.strip())
+            fullsent = ''
+
     clean_data = []
 
     stemmer = StemmerFactory().create_stemmer()
